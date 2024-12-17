@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
+using System.Text;
 
 namespace QuWordFinderBusiness.Models
 {
@@ -15,12 +16,21 @@ namespace QuWordFinderBusiness.Models
         #region "Public Methods"
         public WordFinder(IEnumerable<string> matrix)
         {
-            var matrixArray = matrix.ToArray();
+            try
+            {
+                var matrixArray = matrix.ToArray();
 
-            if (matrixArray.Length < matrixSizeMin || matrixArray.Length > matrixSizeMax || matrixArray.Any(row => row.Length != matrixArray[0].Length))
-                throw new ArgumentException(String.Format("Matrix size must be between {0}x{0} and {1}x{1}, and all rows must have the same number of characters.", matrixSizeMin, matrixSizeMax));
+                if (matrixArray.Length < matrixSizeMin || matrixArray.Length > matrixSizeMax || matrixArray.Any(row => row.Length != matrixArray[0].Length))
+                    throw new ArgumentException(String.Format("Matrix size must be between {0}x{0} and {1}x{1}, and all rows must have the same number of characters.", matrixSizeMin, matrixSizeMax));
 
-            this.matrix = matrixArray;
+                this.matrix = matrixArray;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error during initialization of WordFinder: " + ex.Message);
+                //Log.Insert(ex.InnerException)
+                throw;
+            }
         }
 
         /// <summary>
@@ -30,13 +40,22 @@ namespace QuWordFinderBusiness.Models
         /// <returns></returns>
         public IEnumerable<string> Find(IEnumerable<string> wordstream)
         {
-            var foundWords = wordstream
+            try
+            {
+                var foundWords = wordstream
                 .Distinct()
                 .Where(word => WordExistsHorizontally(word) || WordExistsVertically(word))
                 .Take(mostRepeatedWord)
                 .ToHashSet();
 
-            return foundWords;
+                return foundWords;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error while finding words: " + ex.Message);
+                //Log.Insert(ex.InnerException)
+                return Enumerable.Empty<string>();
+            }
         }
 
         /// <summary>
@@ -56,7 +75,17 @@ namespace QuWordFinderBusiness.Models
         /// <returns></returns>
         private bool WordExistsHorizontally(string word)
         {
-            return matrix.Any(row => row.Contains(word));
+            try
+            {
+                var rowStrings = matrix;
+                return rowStrings.Any(row => row.Contains(word));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(String.Format("Error while checking horizontally for word '{0}': {1}", word, ex.Message));
+                //Log.Insert(ex.InnerException)
+                return false;  
+            }
         }
 
         /// <summary>
@@ -66,8 +95,30 @@ namespace QuWordFinderBusiness.Models
         /// <returns></returns>
         private bool WordExistsVertically(string word)
         {
-            return Enumerable.Range(0, matrix[0].Length) // Iterate through columns
-                             .Any(col => string.Concat(matrix.Select(row => row[col])).Contains(word));
+            try
+            {
+                int numRows = matrix.Length;
+                int numCols = matrix[0].Length;
+                var columnHashes = new HashSet<string>();
+
+                for (int col = 0; col < numCols; col++)
+                {
+                    var columnBuilder = new StringBuilder();
+                    for (int row = 0; row < numRows; row++)
+                    {
+                        columnBuilder.Append(matrix[row][col]);
+                    }
+                    columnHashes.Add(columnBuilder.ToString());
+                }
+
+                return columnHashes.Contains(word);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(String.Format("Error while checking vertically for word '{0}': {1}", word, ex.Message));
+                //Log.Insert(ex.InnerException)
+                return false;
+            }
         }
         #endregion
     }
